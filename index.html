@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Trip Expense Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Instrument+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ink:#0d1f1a;--ink2:#2c4a3e;--muted:#6b8f7e;--faint:#b8d4c8;
+  --bg:#f0f5f2;--card:#ffffff;--border:#ddeae3;
+  --green:#1a6b44;--greenl:#e6f5ed;--greenm:#2d9b62;
+  --red:#b32b2b;--redl:#fdecea;--amber:#c97c10;--amberl:#fff4e0;
+  --accent:#00b37a;--accentd:#007a52;
+  --shadow:0 2px 12px rgba(13,31,26,.08);
+  --shadow-lg:0 8px 32px rgba(13,31,26,.14);
+  --r:12px;--r-sm:8px;--r-lg:18px;
+}
+body{font-family:'Instrument Sans',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;font-size:15px;line-height:1.5}
+h1,h2,h3,h4{font-family:'Syne',sans-serif;line-height:1.2}
+input,select,textarea,button{font-family:'Instrument Sans',sans-serif}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--faint);border-radius:99px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:var(--r-sm);border:none;cursor:pointer;font-size:14px;font-weight:500;transition:all .2s;white-space:nowrap}
+.btn-primary{background:var(--ink);color:#fff}.btn-primary:hover{background:var(--ink2);transform:translateY(-1px);box-shadow:var(--shadow)}
+.btn-accent{background:var(--accent);color:#fff}.btn-accent:hover{background:var(--accentd);transform:translateY(-1px)}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--ink)}.btn-outline:hover{border-color:var(--ink2);background:var(--greenl)}
+.btn-danger{background:var(--redl);border:1px solid #f5c6c6;color:var(--red)}.btn-danger:hover{background:#fcd7d7}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-icon{padding:7px;border-radius:var(--r-sm);background:transparent;border:1px solid var(--border);cursor:pointer;color:var(--muted);transition:all .2s;display:inline-flex;align-items:center}
+.btn-icon:hover{background:var(--greenl);color:var(--green);border-color:var(--faint)}
+
+/* FORMS */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;letter-spacing:.5px;text-transform:uppercase}
+.form-control{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:14px;color:var(--ink);background:var(--card);outline:none;transition:all .2s}
+.form-control:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,179,122,.12)}
+.form-control::placeholder{color:var(--faint)}
+select.form-control option{background:var(--card)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-error{color:var(--red);font-size:12px;margin-top:4px}
+
+/* TOGGLE */
+.toggle-group{display:flex;border:1.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden;background:var(--bg)}
+.toggle-btn{flex:1;padding:9px;border:none;background:transparent;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:all .2s}
+.toggle-btn.active{background:var(--ink);color:#fff}
+
+/* TAGS / BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;letter-spacing:.3px}
+.badge-common{background:#dbeafe;color:#1d4ed8}
+.badge-individual{background:var(--amberl);color:var(--amber)}
+.badge-receive{background:var(--greenl);color:var(--green)}
+.badge-pay{background:var(--redl);color:var(--red)}
+.badge-neutral{background:var(--bg);color:var(--muted);border:1px solid var(--border)}
+.method-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;font-size:11px;background:var(--bg);border:1px solid var(--border);color:var(--ink2)}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow)}
+.card-flat{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+
+/* STAT CARDS */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
+.stat-card.s-green::before{background:var(--greenm)}
+.stat-card.s-red::before{background:var(--red)}
+.stat-card.s-amber::before{background:var(--amber)}
+.stat-card.s-blue::before{background:#2563eb}
+.stat-label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px}
+.stat-val{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:var(--ink)}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto;border-radius:var(--r)}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:600px}
+thead th{background:var(--greenl);color:var(--ink2);font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:10px 14px;text-align:left;border-bottom:1.5px solid var(--border)}
+tbody td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{transition:background .15s}
+tbody tr:hover{background:var(--greenl)}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(13,31,26,.45);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px;opacity:0;pointer-events:none;transition:opacity .25s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-box{background:var(--card);border-radius:var(--r-lg);padding:28px;width:min(500px,100%);max-height:90vh;overflow-y:auto;transform:translateY(24px) scale(.97);transition:transform .25s;box-shadow:var(--shadow-lg)}
+.modal-overlay.open .modal-box{transform:translateY(0) scale(1)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+.modal-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700}
+.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1;padding:2px 6px;border-radius:6px;transition:all .2s}
+.modal-close:hover{background:var(--redl);color:var(--red)}
+
+/* SCREENS */
+.screen{display:none}
+.screen.active{display:block}
+
+/* AUTH */
+#auth-screen{min-height:100vh;display:none;align-items:center;justify-content:center;background:linear-gradient(135deg,#0d1f1a 0%,#1a3d2e 50%,#0f2d20 100%);position:relative;overflow:hidden}
+#auth-screen.active{display:flex}
+#auth-screen::before{content:'';position:absolute;width:600px;height:600px;border-radius:50%;border:1px solid rgba(0,179,122,.1);top:-200px;right:-200px}
+#auth-screen::after{content:'';position:absolute;width:400px;height:400px;border-radius:50%;border:1px solid rgba(0,179,122,.08);bottom:-150px;left:-150px}
+.auth-card{background:rgba(255,255,255,.97);border-radius:24px;padding:40px 36px;width:min(420px,90vw);box-shadow:0 24px 80px rgba(0,0,0,.3);position:relative;z-index:1}
+.auth-logo{text-align:center;margin-bottom:28px}
+.auth-logo .logo-icon{width:56px;height:56px;background:linear-gradient(135deg,var(--ink) 0%,var(--greenm) 100%);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:12px}
+.auth-logo h1{font-size:22px;color:var(--ink)}
+.auth-logo p{font-size:13px;color:var(--muted);margin-top:4px}
+.auth-tabs{display:flex;border:1.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden;margin-bottom:24px}
+.auth-tab{flex:1;padding:10px;text-align:center;cursor:pointer;font-size:14px;font-weight:500;color:var(--muted);transition:all .2s;border:none;background:transparent}
+.auth-tab.active{background:var(--ink);color:#fff}
+
+/* APP LAYOUT */
+#app-screen{display:none;flex-direction:column;min-height:100vh}
+#app-screen.active{display:flex}
+.topbar{background:var(--ink);color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:58px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.2)}
+.topbar-logo{display:flex;align-items:center;gap:10px;font-family:'Syne',sans-serif;font-size:17px;font-weight:700}
+.topbar-logo .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.topbar-user{font-size:13px;color:rgba(255,255,255,.6)}
+.topbar-user span{color:#fff;font-weight:500}
+
+/* SIDEBAR + CONTENT LAYOUT */
+.app-body{display:flex;flex:1}
+.sidebar{width:220px;background:var(--card);border-right:1px solid var(--border);padding:20px 0;flex-shrink:0;position:sticky;top:58px;height:calc(100vh - 58px);overflow-y:auto}
+.sidebar-section{padding:6px 16px 4px;font-size:10px;font-weight:700;color:var(--faint);letter-spacing:1px;text-transform:uppercase;margin-top:8px}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:all .2s;border-left:3px solid transparent;position:relative}
+.sidebar-item:hover{background:var(--greenl);color:var(--ink2);border-left-color:var(--faint)}
+.sidebar-item.active{background:var(--greenl);color:var(--ink);border-left-color:var(--accent);font-weight:600}
+.sidebar-item .icon{font-size:16px;width:20px;text-align:center}
+.sidebar-trip{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;display:block}
+.content{flex:1;padding:28px;overflow-y:auto;max-width:900px}
+.page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.page-title{font-size:24px;font-weight:800;color:var(--ink)}
+.page-sub{font-size:14px;color:var(--muted);margin-top:2px}
+
+/* TRIP CARD (dashboard) */
+.trips-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.trip-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;cursor:pointer;transition:all .22s;position:relative;overflow:hidden}
+.trip-card::after{content:'';position:absolute;inset:0;border-radius:var(--r-lg);border:2px solid transparent;transition:border-color .2s;pointer-events:none}
+.trip-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+.trip-card:hover::after{border-color:var(--accent)}
+.trip-card-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.trip-card-name{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;color:var(--ink)}
+.trip-card-date{font-size:11px;color:var(--muted)}
+.trip-progress{height:5px;border-radius:99px;background:var(--bg);overflow:hidden;margin:14px 0 8px}
+.trip-progress-bar{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--greenm),var(--accent));transition:width .5s ease}
+.trip-stats{display:flex;gap:16px}
+.trip-stat{font-size:12px;color:var(--muted)}.trip-stat strong{color:var(--ink);font-weight:600;display:block;font-size:13px}
+.empty-state{text-align:center;padding:60px 20px}
+.empty-icon{font-size:56px;margin-bottom:16px;opacity:.7}
+.empty-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--ink);margin-bottom:8px}
+.empty-sub{font-size:14px;color:var(--muted);margin-bottom:24px}
+
+/* FILTER BAR */
+.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.filter-chip{padding:6px 14px;border-radius:99px;border:1.5px solid var(--border);background:transparent;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:all .2s}
+.filter-chip.active{border-color:var(--ink);background:var(--ink);color:#fff}
+
+/* PARTICIPANT ROWS */
+.participant-row{display:grid;grid-template-columns:1fr 140px;gap:8px;margin-bottom:8px;align-items:center}
+.participant-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--ink) 0%,var(--greenm) 100%);color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Syne',sans-serif}
+
+/* BALANCE ROWS */
+.balance-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--r-sm);background:var(--bg);border:1px solid var(--border);margin-bottom:8px}
+.settlement-arrow{display:flex;align-items:center;flex:1;gap:8px}
+.arrow-line{flex:1;height:2px;background:var(--border);position:relative}
+.arrow-line::after{content:'▶';position:absolute;right:-4px;top:50%;transform:translateY(-50%);font-size:8px;color:var(--muted)}
+.settlement-amount{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;padding:4px 10px;border-radius:99px;white-space:nowrap}
+
+/* PROGRESS BAR (modal) */
+.step-indicator{display:flex;gap:8px;margin-bottom:24px}
+.step-dot{flex:1;height:4px;border-radius:99px;background:var(--bg);transition:background .3s}
+.step-dot.done{background:var(--ink)}
+.step-dot.current{background:var(--accent)}
+
+/* MOBILE NAV */
+.mobile-nav{display:none;background:var(--ink);border-top:1px solid rgba(255,255,255,.1);position:fixed;bottom:0;left:0;right:0;z-index:100;padding:8px 0 max(8px,env(safe-area-inset-bottom))}
+.mobile-nav-items{display:flex}
+.mobile-nav-item{flex:1;text-align:center;cursor:pointer;padding:6px 4px;color:rgba(255,255,255,.5);font-size:10px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;transition:color .2s}
+.mobile-nav-item.active{color:var(--accent)}
+.mobile-nav-item .m-icon{font-size:20px;display:block;margin-bottom:3px}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast-item{background:var(--ink);color:#fff;padding:12px 18px;border-radius:var(--r-sm);font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);animation:slideIn .3s ease;display:flex;align-items:center;gap:8px;max-width:300px}
+.toast-item.success::before{content:'✓';width:18px;height:18px;border-radius:50%;background:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0}
+.toast-item.error::before{content:'!';width:18px;height:18px;border-radius:50%;background:var(--red);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+@keyframes slideIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+
+/* ANIMATIONS */
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .3s ease both}
+.fade-up-d1{animation-delay:.06s}.fade-up-d2{animation-delay:.12s}.fade-up-d3{animation-delay:.18s}.fade-up-d4{animation-delay:.24s}
+
+/* DIVIDER */
+hr.sep{border:none;border-top:1px solid var(--border);margin:18px 0}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .content{padding:16px;padding-bottom:80px}
+  .mobile-nav{display:block}
+  .form-row{grid-template-columns:1fr}
+  .stat-grid{grid-template-columns:1fr 1fr}
+  .trips-grid{grid-template-columns:1fr}
+  .topbar{padding:0 16px}
+  table{min-width:500px}
+}
+
+/* MISC */
+.sep-label{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--muted);font-size:12px}
+.sep-label::before,.sep-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.no-data{text-align:center;padding:32px;color:var(--muted);font-size:14px}
+.person-group{margin-bottom:20px}
+.person-group-header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--greenl);border-radius:var(--r-sm);margin-bottom:10px;border:1px solid var(--border)}
+.person-group-header h4{font-family:'Syne',sans-serif;font-size:14px;font-weight:700}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen" class="active">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-icon">✈️</div>
+      <h1>Trip Expense Tracker</h1>
+      <p>Smart group expense management</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Login</button>
+      <button class="auth-tab" onclick="switchAuthTab('signup')">Sign Up</button>
+    </div>
+    <div id="auth-login">
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" class="form-control" id="login-email" placeholder="you@email.com"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" class="form-control" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+      </div>
+      <div id="login-err" class="form-error" style="margin-bottom:12px"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doLogin()">Login →</button>
+      <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:14px">Don't have an account? <a href="#" onclick="switchAuthTab('signup');return false" style="color:var(--green)">Sign up</a></p>
+    </div>
+    <div id="auth-signup" style="display:none">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" class="form-control" id="signup-name" placeholder="Your name"/>
+      </div>
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" class="form-control" id="signup-email" placeholder="you@email.com"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" class="form-control" id="signup-pass" placeholder="Min 6 characters" onkeydown="if(event.key==='Enter')doSignup()"/>
+      </div>
+      <div id="signup-err" class="form-error" style="margin-bottom:12px"></div>
+      <button class="btn btn-accent" style="width:100%;justify-content:center" onclick="doSignup()">Create Account →</button>
+      <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:14px">Already have an account? <a href="#" onclick="switchAuthTab('login');return false" style="color:var(--green)">Login</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- APP SCREEN -->
+<div id="app-screen">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="dot"></div>
+      TripTracker
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-user">Welcome, <span id="topbar-username">—</span></div>
+      <button class="btn btn-outline btn-sm" onclick="doLogout()" style="color:#fff;border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.08)">Logout</button>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-section">Navigation</div>
+      <div class="sidebar-item active" onclick="showPage('dashboard')" id="nav-dashboard">
+        <span class="icon">🏠</span> My Trips
+      </div>
+
+      <div id="trip-nav" style="display:none">
+        <div class="sidebar-section">Current Trip</div>
+        <div class="sidebar-item" onclick="showPage('overview')" id="nav-overview">
+          <span class="icon">📊</span> Overview
+        </div>
+        <div class="sidebar-item" onclick="showPage('expenses')" id="nav-expenses">
+          <span class="icon">💸</span> Expenses
+        </div>
+        <div class="sidebar-item" onclick="showPage('settlement')" id="nav-settlement">
+          <span class="icon">🧮</span> Settlement
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTENT AREA -->
+    <div class="content">
+
+      <!-- DASHBOARD PAGE -->
+      <div id="page-dashboard" class="screen active">
+        <div class="page-header fade-up">
+          <div>
+            <div class="page-title">My Trips</div>
+            <div class="page-sub">Manage all your group trips</div>
+          </div>
+          <button class="btn btn-primary" onclick="openNewTripModal()">+ New Trip</button>
+        </div>
+        <div id="trips-grid" class="trips-grid fade-up fade-up-d1"></div>
+      </div>
+
+      <!-- OVERVIEW PAGE -->
+      <div id="page-overview" class="screen">
+        <div class="page-header fade-up">
+          <div>
+            <div class="page-title" id="ov-tripname">—</div>
+            <div class="page-sub" id="ov-tripsub">—</div>
+          </div>
+          <button class="btn btn-accent" onclick="showPage('expenses')">+ Add Expense</button>
+        </div>
+        <div class="stat-grid fade-up fade-up-d1" id="ov-stats"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;flex-wrap:wrap" id="ov-bottom"></div>
+      </div>
+
+      <!-- EXPENSES PAGE -->
+      <div id="page-expenses" class="screen">
+        <div class="page-header fade-up">
+          <div>
+            <div class="page-title">Expenses</div>
+            <div class="page-sub" id="exp-tripsub">—</div>
+          </div>
+          <button class="btn btn-primary" onclick="openAddExpModal()">+ Add Expense</button>
+        </div>
+        <div class="filter-bar fade-up fade-up-d1">
+          <button class="filter-chip active" onclick="setExpFilter('all',this)">All</button>
+          <button class="filter-chip" onclick="setExpFilter('common',this)">Common</button>
+          <button class="filter-chip" onclick="setExpFilter('individual',this)">Individual</button>
+        </div>
+        <div id="exp-list" class="card fade-up fade-up-d2" style="padding:0;overflow:hidden"></div>
+      </div>
+
+      <!-- SETTLEMENT PAGE -->
+      <div id="page-settlement" class="screen">
+        <div class="page-header fade-up">
+          <div>
+            <div class="page-title">Settlement</div>
+            <div class="page-sub" id="set-tripsub">Final balance & payment plan</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline" onclick="exportCSV()">⬇ Export CSV</button>
+          </div>
+        </div>
+        <div id="settlement-content" class="fade-up fade-up-d1"></div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /app-body -->
+
+  <!-- MOBILE NAV -->
+  <nav class="mobile-nav">
+    <div class="mobile-nav-items">
+      <div class="mobile-nav-item active" onclick="showPage('dashboard')" id="mnav-dashboard">
+        <span class="m-icon">🏠</span>Trips
+      </div>
+      <div class="mobile-nav-item" onclick="showPage('overview')" id="mnav-overview" style="display:none">
+        <span class="m-icon">📊</span>Overview
+      </div>
+      <div class="mobile-nav-item" onclick="showPage('expenses')" id="mnav-expenses" style="display:none">
+        <span class="m-icon">💸</span>Expenses
+      </div>
+      <div class="mobile-nav-item" onclick="showPage('settlement')" id="mnav-settlement" style="display:none">
+        <span class="m-icon">🧮</span>Settle
+      </div>
+    </div>
+  </nav>
+</div>
+
+<!-- ── MODALS ─────────────────────────────────────── -->
+
+<!-- NEW TRIP MODAL -->
+<div class="modal-overlay" id="modal-new-trip">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="nt-title">Create New Trip</div>
+      <button class="modal-close" onclick="closeModal('modal-new-trip')">×</button>
+    </div>
+    <div class="step-indicator">
+      <div class="step-dot current" id="step1-dot"></div>
+      <div class="step-dot" id="step2-dot"></div>
+    </div>
+
+    <!-- Step 1 -->
+    <div id="nt-step1">
+      <div class="form-group">
+        <label>Trip Name</label>
+        <input type="text" class="form-control" id="nt-name" placeholder="e.g. Goa Trip 2025"/>
+      </div>
+      <div class="form-group">
+        <label>Number of Participants</label>
+        <input type="number" class="form-control" id="nt-count" min="1" max="50" placeholder="e.g. 5"/>
+      </div>
+      <div id="nt-step1-err" class="form-error" style="margin-bottom:10px"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="ntNext()">Next: Add Participants →</button>
+    </div>
+
+    <!-- Step 2 -->
+    <div id="nt-step2" style="display:none">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Enter names and advance amounts paid by each participant</p>
+      <div style="display:grid;grid-template-columns:1fr 130px;gap:6px;margin-bottom:6px;padding:0 2px">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Name</span>
+        <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Advance (₹)</span>
+      </div>
+      <div id="nt-participants" style="max-height:320px;overflow-y:auto"></div>
+      <div id="nt-step2-err" class="form-error" style="margin:10px 0 6px"></div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-outline" onclick="ntBack()">← Back</button>
+        <button class="btn btn-accent" style="flex:1;justify-content:center" onclick="ntCreate()">Create Trip ✓</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT EXPENSE MODAL -->
+<div class="modal-overlay" id="modal-expense">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="exp-modal-title">Add Expense</div>
+      <button class="modal-close" onclick="closeModal('modal-expense')">×</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Amount (₹)</label>
+        <input type="number" class="form-control" id="exp-amount" placeholder="0.00" min="0"/>
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" class="form-control" id="exp-date"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Payment Method</label>
+      <select class="form-control" id="exp-method">
+        <option>Cash</option>
+        <option>GPay</option>
+        <option>UPI</option>
+        <option>Card</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Notes / Description</label>
+      <input type="text" class="form-control" id="exp-notes" placeholder="e.g. Lunch at beach shack"/>
+    </div>
+    <div class="form-group">
+      <label>Expense Type</label>
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="exp-type-common" onclick="setExpType('common')">Common (All)</button>
+        <button class="toggle-btn" id="exp-type-individual" onclick="setExpType('individual')">Individual</button>
+      </div>
+    </div>
+    <div id="exp-person-wrap" class="form-group" style="display:none">
+      <label>Select Person</label>
+      <select class="form-control" id="exp-person"></select>
+    </div>
+    <div id="exp-modal-err" class="form-error" style="margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-expense')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="saveExpense()">Save Expense</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD PARTICIPANT MODAL -->
+<div class="modal-overlay" id="modal-add-participant">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">Add Participant</div>
+      <button class="modal-close" onclick="closeModal('modal-add-participant')">×</button>
+    </div>
+    <div class="form-group">
+      <label>Participant Name</label>
+      <input type="text" class="form-control" id="ap-name" placeholder="Name"/>
+    </div>
+    <div class="form-group">
+      <label>Advance Amount (₹)</label>
+      <input type="number" class="form-control" id="ap-advance" placeholder="0" min="0"/>
+    </div>
+    <div id="ap-err" class="form-error" style="margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="closeModal('modal-add-participant')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="addParticipant()">Add Participant</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ───────────────────────── STATE ─────────────────────────
+let STATE = {
+  currentUser: null,
+  currentTripId: null,
+  expFilter: 'all',
+  editingExpId: null,
+  expType: 'common',
+};
+
+// ───────────────────────── STORAGE ───────────────────────
+const DB = {
+  get: k => { try { return JSON.parse(localStorage.getItem(k)) || null } catch { return null } },
+  set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
+};
+
+function getUsers() { return DB.get('tet_users') || [] }
+function saveUsers(u) { DB.set('tet_users', u) }
+function getTrips() { return DB.get('tet_trips') || [] }
+function saveTrips(t) { DB.set('tet_trips', t) }
+function getTrip(id) { return getTrips().find(t => t.id === id) || null }
+function updateTrip(trip) { saveTrips(getTrips().map(t => t.id === trip.id ? trip : t)) }
+function getCurrentTrip() { return STATE.currentTripId ? getTrip(STATE.currentTripId) : null }
+
+// ───────────────────────── UTILS ─────────────────────────
+const fmt = n => '₹' + Math.round(n).toLocaleString('en-IN');
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+const today = () => new Date().toISOString().slice(0, 10);
+const fmtDate = d => { if(!d)return '-'; const dt=new Date(d); return dt.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) };
+const initials = n => n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  const el = document.createElement('div');
+  el.className = 'toast-item ' + type;
+  el.textContent = msg;
+  t.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ───────────────────────── AUTH ───────────────────────────
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((el, i) => el.classList.toggle('active', (i === 0) === (tab === 'login')));
+  document.getElementById('auth-login').style.display = tab === 'login' ? '' : 'none';
+  document.getElementById('auth-signup').style.display = tab === 'signup' ? '' : 'none';
+  document.getElementById('login-err').textContent = '';
+  document.getElementById('signup-err').textContent = '';
+}
+
+function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const users = getUsers();
+  const user = users.find(u => u.email === email && u.password === pass);
+  if (!user) { document.getElementById('login-err').textContent = 'Invalid email or password'; return; }
+  loginSuccess(user);
+}
+
+function doSignup() {
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const pass = document.getElementById('signup-pass').value;
+  if (!name) { document.getElementById('signup-err').textContent = 'Name is required'; return; }
+  if (!email || !email.includes('@')) { document.getElementById('signup-err').textContent = 'Valid email required'; return; }
+  if (pass.length < 6) { document.getElementById('signup-err').textContent = 'Password must be at least 6 characters'; return; }
+  const users = getUsers();
+  if (users.find(u => u.email === email)) { document.getElementById('signup-err').textContent = 'Email already registered'; return; }
+  const user = { id: uid(), name, email, password: pass };
+  users.push(user);
+  saveUsers(users);
+  loginSuccess(user);
+  toast('Account created! Welcome, ' + name);
+}
+
+function loginSuccess(user) {
+  STATE.currentUser = user;
+  document.getElementById('topbar-username').textContent = user.name;
+  document.getElementById('auth-screen').classList.remove('active');
+  document.getElementById('app-screen').classList.add('active');
+  showPage('dashboard');
+}
+
+function doLogout() {
+  STATE.currentUser = null;
+  STATE.currentTripId = null;
+  document.getElementById('app-screen').classList.remove('active');
+  document.getElementById('auth-screen').classList.add('active');
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-err').textContent = '';
+}
+
+// ───────────────────────── NAVIGATION ─────────────────────
+function showPage(page) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item, .mobile-nav-item').forEach(el => el.classList.remove('active'));
+
+  const pg = document.getElementById('page-' + page);
+  if (pg) pg.classList.add('active');
+
+  const sNav = document.getElementById('nav-' + page);
+  if (sNav) sNav.classList.add('active');
+  const mNav = document.getElementById('mnav-' + page);
+  if (mNav) mNav.classList.add('active');
+
+  const trip = getCurrentTrip();
+  const hasTrip = !!trip;
+
+  // Show/hide trip nav items
+  document.getElementById('trip-nav').style.display = hasTrip ? '' : 'none';
+  ['overview','expenses','settlement'].forEach(p => {
+    const mn = document.getElementById('mnav-' + p);
+    if (mn) mn.style.display = hasTrip ? '' : 'none';
+  });
+
+  // Render pages
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'overview' && hasTrip) renderOverview(trip);
+  if (page === 'expenses' && hasTrip) renderExpenses(trip);
+  if (page === 'settlement' && hasTrip) renderSettlement(trip);
+}
+
+// ───────────────────────── DASHBOARD ──────────────────────
+function renderDashboard() {
+  const trips = getTrips().filter(t => t.userId === STATE.currentUser.id);
+  const grid = document.getElementById('trips-grid');
+
+  if (!trips.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="empty-icon">🗺️</div>
+      <div class="empty-title">No trips yet</div>
+      <div class="empty-sub">Create your first trip to start tracking group expenses</div>
+      <button class="btn btn-primary" onclick="openNewTripModal()">+ Create Your First Trip</button>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = trips.map(t => {
+    const total = t.participants.reduce((s, p) => s + (p.advance || 0), 0);
+    const spent = (t.expenses || []).reduce((s, e) => s + e.amount, 0);
+    const pct = total > 0 ? Math.min(100, Math.round(spent / total * 100)) : 0;
+    const createdDate = new Date(t.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `<div class="trip-card" onclick="openTrip('${t.id}')">
+      <div class="trip-card-head">
+        <div>
+          <div class="trip-card-name">📍 ${esc(t.name)}</div>
+          <div class="trip-card-date">${createdDate}</div>
+        </div>
+        <span class="badge badge-neutral">${t.participants.length} people</span>
+      </div>
+      <div class="trip-progress"><div class="trip-progress-bar" style="width:${pct}%"></div></div>
+      <div class="trip-stats">
+        <div class="trip-stat"><strong>${fmt(total)}</strong>Collected</div>
+        <div class="trip-stat"><strong style="color:var(--amber)">${fmt(spent)}</strong>Spent</div>
+        <div class="trip-stat"><strong style="color:${total-spent>=0?'var(--green)':'var(--red)'}">${fmt(Math.abs(total-spent))}</strong>${total-spent>=0?'Remaining':'Over'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openTrip(id) {
+  STATE.currentTripId = id;
+  showPage('overview');
+}
+
+// ───────────────────────── NEW TRIP MODAL ──────────────────
+let ntCount = 0;
+
+function openNewTripModal() {
+  document.getElementById('nt-name').value = '';
+  document.getElementById('nt-count').value = '';
+  document.getElementById('nt-step1-err').textContent = '';
+  document.getElementById('nt-step2-err').textContent = '';
+  document.getElementById('nt-step1').style.display = '';
+  document.getElementById('nt-step2').style.display = 'none';
+  document.getElementById('nt-title').textContent = 'Create New Trip';
+  document.getElementById('step1-dot').className = 'step-dot current';
+  document.getElementById('step2-dot').className = 'step-dot';
+  openModal('modal-new-trip');
+}
+
+function ntNext() {
+  const name = document.getElementById('nt-name').value.trim();
+  const count = parseInt(document.getElementById('nt-count').value);
+  document.getElementById('nt-step1-err').textContent = '';
+  if (!name) { document.getElementById('nt-step1-err').textContent = 'Trip name is required'; return; }
+  if (!count || count < 1 || count > 50) { document.getElementById('nt-step1-err').textContent = 'Enter between 1 and 50 participants'; return; }
+  ntCount = count;
+  // Build participant rows
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    html += `<div class="participant-row">
+      <input type="text" class="form-control nt-pname" placeholder="Person ${i+1} name" style="font-size:13px"/>
+      <input type="number" class="form-control nt-padv" placeholder="₹0" min="0" style="font-size:13px"/>
+    </div>`;
+  }
+  document.getElementById('nt-participants').innerHTML = html;
+  document.getElementById('nt-step1').style.display = 'none';
+  document.getElementById('nt-step2').style.display = '';
+  document.getElementById('nt-title').textContent = 'Add Participants';
+  document.getElementById('step1-dot').className = 'step-dot done';
+  document.getElementById('step2-dot').className = 'step-dot current';
+}
+
+function ntBack() {
+  document.getElementById('nt-step1').style.display = '';
+  document.getElementById('nt-step2').style.display = 'none';
+  document.getElementById('nt-title').textContent = 'Create New Trip';
+  document.getElementById('step1-dot').className = 'step-dot current';
+  document.getElementById('step2-dot').className = 'step-dot';
+}
+
+function ntCreate() {
+  document.getElementById('nt-step2-err').textContent = '';
+  const names = [...document.querySelectorAll('.nt-pname')].map(el => el.value.trim());
+  const advs = [...document.querySelectorAll('.nt-padv')].map(el => parseFloat(el.value) || 0);
+  if (names.some(n => !n)) { document.getElementById('nt-step2-err').textContent = 'All participant names are required'; return; }
+  if (new Set(names).size !== names.length) { document.getElementById('nt-step2-err').textContent = 'Participant names must be unique'; return; }
+
+  const participants = names.map((name, i) => ({ id: uid(), name, advance: advs[i] }));
+  const trip = {
+    id: uid(),
+    userId: STATE.currentUser.id,
+    name: document.getElementById('nt-name').value.trim(),
+    participants,
+    expenses: [],
+    createdAt: new Date().toISOString(),
+  };
+  const trips = getTrips();
+  trips.push(trip);
+  saveTrips(trips);
+  closeModal('modal-new-trip');
+  toast('Trip "' + trip.name + '" created!');
+  STATE.currentTripId = trip.id;
+  showPage('overview');
+}
+
+// ───────────────────────── OVERVIEW ───────────────────────
+function renderOverview(trip) {
+  document.getElementById('ov-tripname').textContent = trip.name;
+  document.getElementById('ov-tripsub').textContent = trip.participants.length + ' participants · Created ' + fmtDate(trip.createdAt);
+
+  const total = trip.participants.reduce((s, p) => s + (p.advance || 0), 0);
+  const spent = (trip.expenses || []).reduce((s, e) => s + e.amount, 0);
+  const remaining = total - spent;
+  const commonSpent = (trip.expenses || []).filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0);
+  const indivSpent = spent - commonSpent;
+
+  document.getElementById('ov-stats').innerHTML = `
+    <div class="stat-card s-blue"><div class="stat-label">Participants</div><div class="stat-val">${trip.participants.length}</div><div class="stat-sub">${(trip.expenses||[]).length} expenses</div></div>
+    <div class="stat-card s-green"><div class="stat-label">Total Collected</div><div class="stat-val">${fmt(total)}</div><div class="stat-sub">From advances</div></div>
+    <div class="stat-card s-amber"><div class="stat-label">Total Spent</div><div class="stat-val" style="color:var(--amber)">${fmt(spent)}</div><div class="stat-sub">Common + Individual</div></div>
+    <div class="stat-card ${remaining >= 0 ? 's-green' : 's-red'}"><div class="stat-label">${remaining >= 0 ? 'Remaining' : 'Over Budget'}</div><div class="stat-val" style="color:${remaining >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(Math.abs(remaining))}</div><div class="stat-sub">${remaining >= 0 ? 'Left to spend' : 'Exceeded budget'}</div></div>
+  `;
+
+  const pct = total > 0 ? Math.min(100, Math.round(spent / total * 100)) : 0;
+  const participantRows = trip.participants.map(p => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div class="participant-avatar">${initials(p.name)}</div>
+      <div style="flex:1;font-size:14px;font-weight:500">${esc(p.name)}</div>
+      <div style="text-align:right"><div style="font-size:14px;font-weight:600;color:var(--green)">${fmt(p.advance || 0)}</div><div style="font-size:11px;color:var(--muted)">advance</div></div>
+    </div>
+  `).join('');
+
+  const recentExps = (trip.expenses || []).slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
+  const recentRows = recentExps.length ? recentExps.map(e => `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${esc(e.notes)||'—'}</div>
+        <div style="font-size:11px;color:var(--muted)">${fmtDate(e.date)} · ${e.type==='common'?'Common':'@ '+esc(e.person)}</div>
+      </div>
+      <div style="font-size:14px;font-weight:700;color:var(--amber)">${fmt(e.amount)}</div>
+    </div>
+  `).join('') : '<div class="no-data">No expenses yet</div>';
+
+  document.getElementById('ov-bottom').innerHTML = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h3 style="font-size:15px;font-weight:700">Participants</h3>
+        <button class="btn btn-outline btn-sm" onclick="openModal('modal-add-participant')">+ Add</button>
+      </div>
+      ${participantRows}
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h3 style="font-size:15px;font-weight:700">Expense Breakdown</h3>
+        <button class="btn btn-outline btn-sm" onclick="showPage('expenses')">View All</button>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px"><span style="color:var(--muted)">Common Expenses</span><span style="font-weight:600">${fmt(commonSpent)}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:14px"><span style="color:var(--muted)">Individual Expenses</span><span style="font-weight:600">${fmt(indivSpent)}</span></div>
+        <div style="height:8px;border-radius:99px;background:var(--bg);overflow:hidden;margin-bottom:6px">
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--greenm),var(--accent));border-radius:99px;transition:width .6s ease"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>0</span><span>${pct}% of ${fmt(total)} used</span></div>
+      </div>
+      <hr class="sep"/>
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--muted)">Recent Expenses</div>
+      ${recentRows}
+    </div>
+  `;
+}
+
+// ───────────────────────── EXPENSES ───────────────────────
+function setExpFilter(f, el) {
+  STATE.expFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  if(el) el.classList.add('active');
+  const trip = getCurrentTrip();
+  if (trip) renderExpenses(trip);
+}
+
+function renderExpenses(trip) {
+  document.getElementById('exp-tripsub').textContent = trip.name + ' · ' + (trip.expenses||[]).length + ' expenses';
+  const list = document.getElementById('exp-list');
+  let exps = (trip.expenses || []).slice().sort((a,b) => new Date(b.date) - new Date(a.date));
+
+  if (STATE.expFilter === 'common') exps = exps.filter(e => e.type === 'common');
+  if (STATE.expFilter === 'individual') exps = exps.filter(e => e.type === 'individual');
+
+  if (!exps.length) {
+    list.innerHTML = '<div class="no-data" style="padding:48px">No expenses found. Add one!</div>';
+    return;
+  }
+
+  if (STATE.expFilter === 'individual') {
+    // Group by person
+    const byPerson = {};
+    trip.participants.forEach(p => { byPerson[p.name] = [] });
+    exps.forEach(e => { if (e.person && byPerson[e.person] !== undefined) byPerson[e.person].push(e); else if(e.person){ byPerson[e.person]=[e]; } });
+    let html = '<div style="padding:16px">';
+    let hasAny = false;
+    Object.entries(byPerson).forEach(([person, pExps]) => {
+      if (!pExps.length) return;
+      hasAny = true;
+      const total = pExps.reduce((s,e)=>s+e.amount,0);
+      const part = trip.participants.find(p => p.name === person);
+      const adv = part ? part.advance : 0;
+      const bal = adv - total;
+      html += `<div class="person-group">
+        <div class="person-group-header">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="participant-avatar">${initials(person)}</div>
+            <h4>${esc(person)}</h4>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <span style="font-size:12px;color:var(--muted)">Spent: <strong style="color:var(--amber)">${fmt(total)}</strong></span>
+            <span class="badge ${bal>=0?'badge-receive':'badge-pay'}">${bal>=0?'▲ Receive ':'▼ Pay '}${fmt(Math.abs(bal))}</span>
+          </div>
+        </div>
+        <div class="tbl-wrap">${buildExpTable(pExps, true)}</div>
+      </div>`;
+    });
+    if (!hasAny) html += '<div class="no-data">No individual expenses</div>';
+    html += '</div>';
+    list.innerHTML = html;
+  } else {
+    list.innerHTML = '<div class="tbl-wrap">' + buildExpTable(exps, false) + '</div>';
+  }
+}
+
+function buildExpTable(exps, compact) {
+  const cols = compact
+    ? `<tr><th>Date</th><th>Amount</th><th>Method</th><th>Notes</th><th style="width:80px">Actions</th></tr>`
+    : `<tr><th>Date</th><th>Amount</th><th>Type</th><th>Person</th><th>Method</th><th>Notes</th><th style="width:80px">Actions</th></tr>`;
+
+  const rows = exps.map(e => {
+    const typeBadge = e.type === 'common'
+      ? '<span class="badge badge-common">Common</span>'
+      : '<span class="badge badge-individual">Individual</span>';
+    const personCell = e.person ? `<span style="font-size:12px">${esc(e.person)}</span>` : '<span style="color:var(--faint)">—</span>';
+    return compact
+      ? `<tr>
+          <td style="white-space:nowrap;font-size:12px;color:var(--muted)">${fmtDate(e.date)}</td>
+          <td><strong style="color:var(--ink)">${fmt(e.amount)}</strong></td>
+          <td><span class="method-chip">${esc(e.method||'Cash')}</span></td>
+          <td style="color:var(--muted);font-size:12px">${esc(e.notes)||'—'}</td>
+          <td><div style="display:flex;gap:4px">
+            <button class="btn-icon" title="Edit" onclick="editExpense('${e.id}')">✏️</button>
+            <button class="btn-icon" title="Delete" onclick="deleteExpense('${e.id}')" style="color:var(--red)">🗑️</button>
+          </div></td>
+        </tr>`
+      : `<tr>
+          <td style="white-space:nowrap;font-size:12px;color:var(--muted)">${fmtDate(e.date)}</td>
+          <td><strong style="color:var(--ink)">${fmt(e.amount)}</strong></td>
+          <td>${typeBadge}</td>
+          <td>${personCell}</td>
+          <td><span class="method-chip">${esc(e.method||'Cash')}</span></td>
+          <td style="color:var(--muted);font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.notes)||'—'}</td>
+          <td><div style="display:flex;gap:4px">
+            <button class="btn-icon" title="Edit" onclick="editExpense('${e.id}')">✏️</button>
+            <button class="btn-icon" title="Delete" onclick="deleteExpense('${e.id}')" style="color:var(--red)">🗑️</button>
+          </div></td>
+        </tr>`;
+  }).join('');
+
+  return `<table><thead>${cols}</thead><tbody>${rows}</tbody></table>`;
+}
+
+// ───────────────────────── ADD/EDIT EXPENSE ───────────────
+function setExpType(type) {
+  STATE.expType = type;
+  document.getElementById('exp-type-common').classList.toggle('active', type === 'common');
+  document.getElementById('exp-type-individual').classList.toggle('active', type === 'individual');
+  document.getElementById('exp-person-wrap').style.display = type === 'individual' ? '' : 'none';
+}
+
+function openAddExpModal() {
+  const trip = getCurrentTrip();
+  if (!trip) return;
+  STATE.editingExpId = null;
+  document.getElementById('exp-modal-title').textContent = 'Add Expense';
+  document.getElementById('exp-amount').value = '';
+  document.getElementById('exp-date').value = today();
+  document.getElementById('exp-method').value = 'Cash';
+  document.getElementById('exp-notes').value = '';
+  document.getElementById('exp-modal-err').textContent = '';
+  setExpType('common');
+  const sel = document.getElementById('exp-person');
+  sel.innerHTML = '<option value="">-- Select Person --</option>' + trip.participants.map(p => `<option>${esc(p.name)}</option>`).join('');
+  openModal('modal-expense');
+}
+
+function editExpense(id) {
+  const trip = getCurrentTrip();
+  const exp = (trip.expenses || []).find(e => e.id === id);
+  if (!exp) return;
+  STATE.editingExpId = id;
+  document.getElementById('exp-modal-title').textContent = 'Edit Expense';
+  document.getElementById('exp-amount').value = exp.amount;
+  document.getElementById('exp-date').value = exp.date;
+  document.getElementById('exp-method').value = exp.method || 'Cash';
+  document.getElementById('exp-notes').value = exp.notes || '';
+  document.getElementById('exp-modal-err').textContent = '';
+  setExpType(exp.type);
+  const sel = document.getElementById('exp-person');
+  sel.innerHTML = '<option value="">-- Select Person --</option>' + trip.participants.map(p => `<option ${p.name===exp.person?'selected':''}>${esc(p.name)}</option>`).join('');
+  openModal('modal-expense');
+}
+
+function saveExpense() {
+  const trip = getCurrentTrip();
+  const amount = parseFloat(document.getElementById('exp-amount').value);
+  const date = document.getElementById('exp-date').value;
+  const method = document.getElementById('exp-method').value;
+  const notes = document.getElementById('exp-notes').value.trim();
+  const type = STATE.expType;
+  const person = type === 'individual' ? document.getElementById('exp-person').value : null;
+  const errEl = document.getElementById('exp-modal-err');
+
+  if (!amount || amount <= 0) { errEl.textContent = 'Enter a valid amount'; return; }
+  if (!date) { errEl.textContent = 'Date is required'; return; }
+  if (type === 'individual' && !person) { errEl.textContent = 'Select a person for individual expense'; return; }
+
+  const exp = { id: STATE.editingExpId || uid(), amount, date, method, notes, type, person: person || null };
+  const exps = trip.expenses || [];
+  if (STATE.editingExpId) {
+    trip.expenses = exps.map(e => e.id === STATE.editingExpId ? exp : e);
+    toast('Expense updated');
+  } else {
+    trip.expenses = [...exps, exp];
+    toast('Expense added');
+  }
+  updateTrip(trip);
+  closeModal('modal-expense');
+  renderExpenses(trip);
+  // Also refresh overview if needed
+}
+
+function deleteExpense(id) {
+  if (!confirm('Delete this expense?')) return;
+  const trip = getCurrentTrip();
+  trip.expenses = (trip.expenses || []).filter(e => e.id !== id);
+  updateTrip(trip);
+  renderExpenses(trip);
+  toast('Expense deleted', 'error');
+}
+
+// ───────────────────────── PARTICIPANT ─────────────────────
+function addParticipant() {
+  const name = document.getElementById('ap-name').value.trim();
+  const advance = parseFloat(document.getElementById('ap-advance').value) || 0;
+  const trip = getCurrentTrip();
+  document.getElementById('ap-err').textContent = '';
+  if (!name) { document.getElementById('ap-err').textContent = 'Name is required'; return; }
+  if (trip.participants.find(p => p.name.toLowerCase() === name.toLowerCase())) { document.getElementById('ap-err').textContent = 'Participant already exists'; return; }
+  trip.participants.push({ id: uid(), name, advance });
+  updateTrip(trip);
+  closeModal('modal-add-participant');
+  renderOverview(trip);
+  toast(name + ' added to trip');
+}
+
+// ───────────────────────── SETTLEMENT ─────────────────────
+function renderSettlement(trip) {
+  document.getElementById('set-tripsub').textContent = trip.name + ' · Final balance calculation';
+  const n = trip.participants.length;
+  const commonSpent = (trip.expenses||[]).filter(e=>e.type==='common').reduce((s,e)=>s+e.amount,0);
+  const perHead = n > 0 ? commonSpent / n : 0;
+
+  const calc = trip.participants.map(p => {
+    const indiv = (trip.expenses||[]).filter(e=>e.type==='individual'&&e.person===p.name).reduce((s,e)=>s+e.amount,0);
+    const totalSpent = perHead + indiv;
+    const balance = (p.advance||0) - totalSpent;
+    return { ...p, indiv, totalSpent, balance, perHead };
+  });
+
+  const givers = calc.filter(p=>p.balance<0).map(p=>({...p,owes:-p.balance}));
+  const receivers = calc.filter(p=>p.balance>0).map(p=>({...p,due:p.balance}));
+  const txns = computeSettlement(givers.map(g=>({...g})), receivers.map(r=>({...r})));
+
+  const balanceRows = calc.map(p => `
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div class="participant-avatar">${initials(p.name)}</div>
+        <span style="font-weight:500">${esc(p.name)}</span>
+      </div></td>
+      <td style="text-align:right;font-weight:600;color:var(--green)">${fmt(p.advance||0)}</td>
+      <td style="text-align:right">${fmt(p.perHead)}</td>
+      <td style="text-align:right">${fmt(p.indiv)}</td>
+      <td style="text-align:right;font-weight:700;color:var(--amber)">${fmt(p.totalSpent)}</td>
+      <td style="text-align:right">
+        <span class="badge ${p.balance>=0?'badge-receive':'badge-pay'}">
+          ${p.balance>=0?'▲ Receive':'▼ Pay'} ${fmt(Math.abs(p.balance))}
+        </span>
+      </td>
+    </tr>
+  `).join('');
+
+  const txnRows = txns.length ? txns.map(t => `
+    <div class="balance-row">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="participant-avatar" style="background:var(--redl);color:var(--red)">${initials(t.from)}</div>
+        <span style="font-weight:500;font-size:14px">${esc(t.from)}</span>
+      </div>
+      <div class="settlement-arrow">
+        <div class="arrow-line"></div>
+        <span class="settlement-amount" style="background:var(--greenl);color:var(--green)">${fmt(t.amount)}</span>
+        <div class="arrow-line"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-weight:500;font-size:14px">${esc(t.to)}</span>
+        <div class="participant-avatar" style="background:var(--greenl);color:var(--green)">${initials(t.to)}</div>
+      </div>
+    </div>
+  `).join('') : `<div style="text-align:center;padding:32px">
+    <div style="font-size:40px;margin-bottom:10px">✅</div>
+    <div style="font-weight:600;color:var(--green);font-size:16px">All Settled!</div>
+    <div style="color:var(--muted);font-size:13px;margin-top:4px">No transactions needed</div>
+  </div>`;
+
+  document.getElementById('settlement-content').innerHTML = `
+    <div class="card" style="margin-bottom:16px">
+      <h3 style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:6px">Balance Sheet</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Common expense per head: <strong>${fmt(perHead)}</strong></p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Participant</th>
+            <th style="text-align:right">Advance Paid</th>
+            <th style="text-align:right">Common Share</th>
+            <th style="text-align:right">Individual</th>
+            <th style="text-align:right">Total Spent</th>
+            <th style="text-align:right">Balance</th>
+          </tr></thead>
+          <tbody>${balanceRows}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:6px">Settlement Plan</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Minimum transactions to clear all dues</p>
+      ${txnRows}
+    </div>
+  `;
+}
+
+function computeSettlement(givers, receivers) {
+  const txns = [];
+  let i = 0, j = 0;
+  while (i < givers.length && j < receivers.length) {
+    const amt = Math.min(givers[i].owes, receivers[j].due);
+    if (amt > 0.5) txns.push({ from: givers[i].name, to: receivers[j].name, amount: amt });
+    givers[i].owes -= amt;
+    receivers[j].due -= amt;
+    if (givers[i].owes < 0.5) i++;
+    if (receivers[j].due < 0.5) j++;
+  }
+  return txns;
+}
+
+// ───────────────────────── EXPORT ─────────────────────────
+function exportCSV() {
+  const trip = getCurrentTrip();
+  if (!trip) return;
+  const rows = [['Date','Amount','Type','Person','Method','Notes']];
+  (trip.expenses||[]).slice().sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(e => {
+    rows.push([e.date, e.amount, e.type, e.person||'All', e.method||'Cash', e.notes||'']);
+  });
+  const csv = rows.map(r => r.map(cell => '"' + String(cell).replace(/"/g,'""') + '"').join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = trip.name.replace(/\s+/g,'_') + '_expenses.csv';
+  a.click();
+  toast('CSV exported!');
+}
+
+// ───────────────────────── MODALS ─────────────────────────
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+// ───────────────────────── HELPERS ────────────────────────
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ───────────────────────── INIT ───────────────────────────
+// Check for logged in user (demo: no persistent session for security)
+</script>
+</body>
+</html>
