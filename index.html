@@ -504,7 +504,38 @@ hr.sep{border:none;border-top:1px solid var(--border);margin:18px 0}
 <!-- TOAST -->
 <div id="toast"></div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+
+import { 
+  getAuth, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// 🔥 Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyBD-n4PkasPrwmbsowp4Ftf-WNyVuATX8",
+  authDomain: "trip-expense-tracker-83f4c.firebaseapp.com",
+  projectId: "trip-expense-tracker-83f4c",
+  storageBucket: "trip-expense-tracker-83f4c.firebasestorage.app",
+  messagingSenderId: "439406344949",
+  appId: "1:439406344949:web:446cc6b3986a83acf0e3bc"
+};
+
+// 🔌 Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// 🌍 Make global
+window.auth = auth;
+window.db = db;
+
 // ───────────────────────── STATE ─────────────────────────
 let STATE = {
   currentUser: null,
@@ -514,14 +545,12 @@ let STATE = {
   expType: 'common',
 };
 
-// ───────────────────────── STORAGE ───────────────────────
+// ───────────────────────── LOCAL STORAGE (TEMP) ─────────────────────────
 const DB = {
   get: k => { try { return JSON.parse(localStorage.getItem(k)) || null } catch { return null } },
   set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
 };
 
-function getUsers() { return DB.get('tet_users') || [] }
-function saveUsers(u) { DB.set('tet_users', u) }
 function getTrips() { return DB.get('tet_trips') || [] }
 function saveTrips(t) { DB.set('tet_trips', t) }
 function getTrip(id) { return getTrips().find(t => t.id === id) || null }
@@ -529,611 +558,81 @@ function updateTrip(trip) { saveTrips(getTrips().map(t => t.id === trip.id ? tri
 function getCurrentTrip() { return STATE.currentTripId ? getTrip(STATE.currentTripId) : null }
 
 // ───────────────────────── UTILS ─────────────────────────
-const fmt = n => '₹' + Math.round(n).toLocaleString('en-IN');
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-const today = () => new Date().toISOString().slice(0, 10);
-const fmtDate = d => { if(!d)return '-'; const dt=new Date(d); return dt.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) };
-const initials = n => n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
-function toast(msg, type = 'success') {
-  const t = document.getElementById('toast');
-  const el = document.createElement('div');
-  el.className = 'toast-item ' + type;
-  el.textContent = msg;
-  t.appendChild(el);
-  setTimeout(() => el.remove(), 3000);
-}
+// ───────────────────────── AUTH (🔥 REAL NOW) ─────────────────────────
 
-// ───────────────────────── AUTH ───────────────────────────
-function switchAuthTab(tab) {
-  document.querySelectorAll('.auth-tab').forEach((el, i) => el.classList.toggle('active', (i === 0) === (tab === 'login')));
-  document.getElementById('auth-login').style.display = tab === 'login' ? '' : 'none';
-  document.getElementById('auth-signup').style.display = tab === 'signup' ? '' : 'none';
-  document.getElementById('login-err').textContent = '';
-  document.getElementById('signup-err').textContent = '';
-}
-
-function doLogin() {
-  const email = document.getElementById('login-email').value.trim();
-  const pass = document.getElementById('login-pass').value;
-  const users = getUsers();
-  const user = users.find(u => u.email === email && u.password === pass);
-  if (!user) { document.getElementById('login-err').textContent = 'Invalid email or password'; return; }
-  loginSuccess(user);
-}
-
-function doSignup() {
+// SIGNUP
+window.doSignup = async function () {
   const name = document.getElementById('signup-name').value.trim();
   const email = document.getElementById('signup-email').value.trim();
   const pass = document.getElementById('signup-pass').value;
-  if (!name) { document.getElementById('signup-err').textContent = 'Name is required'; return; }
-  if (!email || !email.includes('@')) { document.getElementById('signup-err').textContent = 'Valid email required'; return; }
-  if (pass.length < 6) { document.getElementById('signup-err').textContent = 'Password must be at least 6 characters'; return; }
-  const users = getUsers();
-  if (users.find(u => u.email === email)) { document.getElementById('signup-err').textContent = 'Email already registered'; return; }
-  const user = { id: uid(), name, email, password: pass };
-  users.push(user);
-  saveUsers(users);
-  loginSuccess(user);
-  toast('Account created! Welcome, ' + name);
-}
 
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+    const user = userCredential.user;
+
+    STATE.currentUser = {
+      id: user.uid,
+      name: name,
+      email: email
+    };
+
+    loginSuccess(STATE.currentUser);
+  } catch (err) {
+    document.getElementById('signup-err').textContent = err.message;
+  }
+};
+
+// LOGIN
+window.doLogin = async function () {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+    const user = userCredential.user;
+
+    STATE.currentUser = {
+      id: user.uid,
+      email: user.email
+    };
+
+    loginSuccess(STATE.currentUser);
+  } catch (err) {
+    document.getElementById('login-err').textContent = err.message;
+  }
+};
+
+// AUTO LOGIN (VERY IMPORTANT)
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    STATE.currentUser = {
+      id: user.uid,
+      email: user.email
+    };
+    loginSuccess(STATE.currentUser);
+  }
+});
+
+// LOGOUT
+window.doLogout = async function () {
+  await signOut(auth);
+  STATE.currentUser = null;
+  STATE.currentTripId = null;
+
+  document.getElementById('app-screen').classList.remove('active');
+  document.getElementById('auth-screen').classList.add('active');
+};
+
+// ───────────────────────── LOGIN SUCCESS ─────────────────────────
 function loginSuccess(user) {
-  STATE.currentUser = user;
-  document.getElementById('topbar-username').textContent = user.name;
+  document.getElementById('topbar-username').textContent = user.email;
   document.getElementById('auth-screen').classList.remove('active');
   document.getElementById('app-screen').classList.add('active');
   showPage('dashboard');
 }
 
-function doLogout() {
-  STATE.currentUser = null;
-  STATE.currentTripId = null;
-  document.getElementById('app-screen').classList.remove('active');
-  document.getElementById('auth-screen').classList.add('active');
-  document.getElementById('login-email').value = '';
-  document.getElementById('login-pass').value = '';
-  document.getElementById('login-err').textContent = '';
-}
-
-// ───────────────────────── NAVIGATION ─────────────────────
-function showPage(page) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.sidebar-item, .mobile-nav-item').forEach(el => el.classList.remove('active'));
-
-  const pg = document.getElementById('page-' + page);
-  if (pg) pg.classList.add('active');
-
-  const sNav = document.getElementById('nav-' + page);
-  if (sNav) sNav.classList.add('active');
-  const mNav = document.getElementById('mnav-' + page);
-  if (mNav) mNav.classList.add('active');
-
-  const trip = getCurrentTrip();
-  const hasTrip = !!trip;
-
-  // Show/hide trip nav items
-  document.getElementById('trip-nav').style.display = hasTrip ? '' : 'none';
-  ['overview','expenses','settlement'].forEach(p => {
-    const mn = document.getElementById('mnav-' + p);
-    if (mn) mn.style.display = hasTrip ? '' : 'none';
-  });
-
-  // Render pages
-  if (page === 'dashboard') renderDashboard();
-  if (page === 'overview' && hasTrip) renderOverview(trip);
-  if (page === 'expenses' && hasTrip) renderExpenses(trip);
-  if (page === 'settlement' && hasTrip) renderSettlement(trip);
-}
-
-// ───────────────────────── DASHBOARD ──────────────────────
-function renderDashboard() {
-  const trips = getTrips().filter(t => t.userId === STATE.currentUser.id);
-  const grid = document.getElementById('trips-grid');
-
-  if (!trips.length) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
-      <div class="empty-icon">🗺️</div>
-      <div class="empty-title">No trips yet</div>
-      <div class="empty-sub">Create your first trip to start tracking group expenses</div>
-      <button class="btn btn-primary" onclick="openNewTripModal()">+ Create Your First Trip</button>
-    </div>`;
-    return;
-  }
-
-  grid.innerHTML = trips.map(t => {
-    const total = t.participants.reduce((s, p) => s + (p.advance || 0), 0);
-    const spent = (t.expenses || []).reduce((s, e) => s + e.amount, 0);
-    const pct = total > 0 ? Math.min(100, Math.round(spent / total * 100)) : 0;
-    const createdDate = new Date(t.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-    return `<div class="trip-card" onclick="openTrip('${t.id}')">
-      <div class="trip-card-head">
-        <div>
-          <div class="trip-card-name">📍 ${esc(t.name)}</div>
-          <div class="trip-card-date">${createdDate}</div>
-        </div>
-        <span class="badge badge-neutral">${t.participants.length} people</span>
-      </div>
-      <div class="trip-progress"><div class="trip-progress-bar" style="width:${pct}%"></div></div>
-      <div class="trip-stats">
-        <div class="trip-stat"><strong>${fmt(total)}</strong>Collected</div>
-        <div class="trip-stat"><strong style="color:var(--amber)">${fmt(spent)}</strong>Spent</div>
-        <div class="trip-stat"><strong style="color:${total-spent>=0?'var(--green)':'var(--red)'}">${fmt(Math.abs(total-spent))}</strong>${total-spent>=0?'Remaining':'Over'}</div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function openTrip(id) {
-  STATE.currentTripId = id;
-  showPage('overview');
-}
-
-// ───────────────────────── NEW TRIP MODAL ──────────────────
-let ntCount = 0;
-
-function openNewTripModal() {
-  document.getElementById('nt-name').value = '';
-  document.getElementById('nt-count').value = '';
-  document.getElementById('nt-step1-err').textContent = '';
-  document.getElementById('nt-step2-err').textContent = '';
-  document.getElementById('nt-step1').style.display = '';
-  document.getElementById('nt-step2').style.display = 'none';
-  document.getElementById('nt-title').textContent = 'Create New Trip';
-  document.getElementById('step1-dot').className = 'step-dot current';
-  document.getElementById('step2-dot').className = 'step-dot';
-  openModal('modal-new-trip');
-}
-
-function ntNext() {
-  const name = document.getElementById('nt-name').value.trim();
-  const count = parseInt(document.getElementById('nt-count').value);
-  document.getElementById('nt-step1-err').textContent = '';
-  if (!name) { document.getElementById('nt-step1-err').textContent = 'Trip name is required'; return; }
-  if (!count || count < 1 || count > 50) { document.getElementById('nt-step1-err').textContent = 'Enter between 1 and 50 participants'; return; }
-  ntCount = count;
-  // Build participant rows
-  let html = '';
-  for (let i = 0; i < count; i++) {
-    html += `<div class="participant-row">
-      <input type="text" class="form-control nt-pname" placeholder="Person ${i+1} name" style="font-size:13px"/>
-      <input type="number" class="form-control nt-padv" placeholder="₹0" min="0" style="font-size:13px"/>
-    </div>`;
-  }
-  document.getElementById('nt-participants').innerHTML = html;
-  document.getElementById('nt-step1').style.display = 'none';
-  document.getElementById('nt-step2').style.display = '';
-  document.getElementById('nt-title').textContent = 'Add Participants';
-  document.getElementById('step1-dot').className = 'step-dot done';
-  document.getElementById('step2-dot').className = 'step-dot current';
-}
-
-function ntBack() {
-  document.getElementById('nt-step1').style.display = '';
-  document.getElementById('nt-step2').style.display = 'none';
-  document.getElementById('nt-title').textContent = 'Create New Trip';
-  document.getElementById('step1-dot').className = 'step-dot current';
-  document.getElementById('step2-dot').className = 'step-dot';
-}
-
-function ntCreate() {
-  document.getElementById('nt-step2-err').textContent = '';
-  const names = [...document.querySelectorAll('.nt-pname')].map(el => el.value.trim());
-  const advs = [...document.querySelectorAll('.nt-padv')].map(el => parseFloat(el.value) || 0);
-  if (names.some(n => !n)) { document.getElementById('nt-step2-err').textContent = 'All participant names are required'; return; }
-  if (new Set(names).size !== names.length) { document.getElementById('nt-step2-err').textContent = 'Participant names must be unique'; return; }
-
-  const participants = names.map((name, i) => ({ id: uid(), name, advance: advs[i] }));
-  const trip = {
-    id: uid(),
-    userId: STATE.currentUser.id,
-    name: document.getElementById('nt-name').value.trim(),
-    participants,
-    expenses: [],
-    createdAt: new Date().toISOString(),
-  };
-  const trips = getTrips();
-  trips.push(trip);
-  saveTrips(trips);
-  closeModal('modal-new-trip');
-  toast('Trip "' + trip.name + '" created!');
-  STATE.currentTripId = trip.id;
-  showPage('overview');
-}
-
-// ───────────────────────── OVERVIEW ───────────────────────
-function renderOverview(trip) {
-  document.getElementById('ov-tripname').textContent = trip.name;
-  document.getElementById('ov-tripsub').textContent = trip.participants.length + ' participants · Created ' + fmtDate(trip.createdAt);
-
-  const total = trip.participants.reduce((s, p) => s + (p.advance || 0), 0);
-  const spent = (trip.expenses || []).reduce((s, e) => s + e.amount, 0);
-  const remaining = total - spent;
-  const commonSpent = (trip.expenses || []).filter(e => e.type === 'common').reduce((s, e) => s + e.amount, 0);
-  const indivSpent = spent - commonSpent;
-
-  document.getElementById('ov-stats').innerHTML = `
-    <div class="stat-card s-blue"><div class="stat-label">Participants</div><div class="stat-val">${trip.participants.length}</div><div class="stat-sub">${(trip.expenses||[]).length} expenses</div></div>
-    <div class="stat-card s-green"><div class="stat-label">Total Collected</div><div class="stat-val">${fmt(total)}</div><div class="stat-sub">From advances</div></div>
-    <div class="stat-card s-amber"><div class="stat-label">Total Spent</div><div class="stat-val" style="color:var(--amber)">${fmt(spent)}</div><div class="stat-sub">Common + Individual</div></div>
-    <div class="stat-card ${remaining >= 0 ? 's-green' : 's-red'}"><div class="stat-label">${remaining >= 0 ? 'Remaining' : 'Over Budget'}</div><div class="stat-val" style="color:${remaining >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(Math.abs(remaining))}</div><div class="stat-sub">${remaining >= 0 ? 'Left to spend' : 'Exceeded budget'}</div></div>
-  `;
-
-  const pct = total > 0 ? Math.min(100, Math.round(spent / total * 100)) : 0;
-  const participantRows = trip.participants.map(p => `
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
-      <div class="participant-avatar">${initials(p.name)}</div>
-      <div style="flex:1;font-size:14px;font-weight:500">${esc(p.name)}</div>
-      <div style="text-align:right"><div style="font-size:14px;font-weight:600;color:var(--green)">${fmt(p.advance || 0)}</div><div style="font-size:11px;color:var(--muted)">advance</div></div>
-    </div>
-  `).join('');
-
-  const recentExps = (trip.expenses || []).slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
-  const recentRows = recentExps.length ? recentExps.map(e => `
-    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:500">${esc(e.notes)||'—'}</div>
-        <div style="font-size:11px;color:var(--muted)">${fmtDate(e.date)} · ${e.type==='common'?'Common':'@ '+esc(e.person)}</div>
-      </div>
-      <div style="font-size:14px;font-weight:700;color:var(--amber)">${fmt(e.amount)}</div>
-    </div>
-  `).join('') : '<div class="no-data">No expenses yet</div>';
-
-  document.getElementById('ov-bottom').innerHTML = `
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <h3 style="font-size:15px;font-weight:700">Participants</h3>
-        <button class="btn btn-outline btn-sm" onclick="openModal('modal-add-participant')">+ Add</button>
-      </div>
-      ${participantRows}
-    </div>
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <h3 style="font-size:15px;font-weight:700">Expense Breakdown</h3>
-        <button class="btn btn-outline btn-sm" onclick="showPage('expenses')">View All</button>
-      </div>
-      <div style="margin-bottom:14px">
-        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px"><span style="color:var(--muted)">Common Expenses</span><span style="font-weight:600">${fmt(commonSpent)}</span></div>
-        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:14px"><span style="color:var(--muted)">Individual Expenses</span><span style="font-weight:600">${fmt(indivSpent)}</span></div>
-        <div style="height:8px;border-radius:99px;background:var(--bg);overflow:hidden;margin-bottom:6px">
-          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--greenm),var(--accent));border-radius:99px;transition:width .6s ease"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>0</span><span>${pct}% of ${fmt(total)} used</span></div>
-      </div>
-      <hr class="sep"/>
-      <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--muted)">Recent Expenses</div>
-      ${recentRows}
-    </div>
-  `;
-}
-
-// ───────────────────────── EXPENSES ───────────────────────
-function setExpFilter(f, el) {
-  STATE.expFilter = f;
-  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-  if(el) el.classList.add('active');
-  const trip = getCurrentTrip();
-  if (trip) renderExpenses(trip);
-}
-
-function renderExpenses(trip) {
-  document.getElementById('exp-tripsub').textContent = trip.name + ' · ' + (trip.expenses||[]).length + ' expenses';
-  const list = document.getElementById('exp-list');
-  let exps = (trip.expenses || []).slice().sort((a,b) => new Date(b.date) - new Date(a.date));
-
-  if (STATE.expFilter === 'common') exps = exps.filter(e => e.type === 'common');
-  if (STATE.expFilter === 'individual') exps = exps.filter(e => e.type === 'individual');
-
-  if (!exps.length) {
-    list.innerHTML = '<div class="no-data" style="padding:48px">No expenses found. Add one!</div>';
-    return;
-  }
-
-  if (STATE.expFilter === 'individual') {
-    // Group by person
-    const byPerson = {};
-    trip.participants.forEach(p => { byPerson[p.name] = [] });
-    exps.forEach(e => { if (e.person && byPerson[e.person] !== undefined) byPerson[e.person].push(e); else if(e.person){ byPerson[e.person]=[e]; } });
-    let html = '<div style="padding:16px">';
-    let hasAny = false;
-    Object.entries(byPerson).forEach(([person, pExps]) => {
-      if (!pExps.length) return;
-      hasAny = true;
-      const total = pExps.reduce((s,e)=>s+e.amount,0);
-      const part = trip.participants.find(p => p.name === person);
-      const adv = part ? part.advance : 0;
-      const bal = adv - total;
-      html += `<div class="person-group">
-        <div class="person-group-header">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div class="participant-avatar">${initials(person)}</div>
-            <h4>${esc(person)}</h4>
-          </div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <span style="font-size:12px;color:var(--muted)">Spent: <strong style="color:var(--amber)">${fmt(total)}</strong></span>
-            <span class="badge ${bal>=0?'badge-receive':'badge-pay'}">${bal>=0?'▲ Receive ':'▼ Pay '}${fmt(Math.abs(bal))}</span>
-          </div>
-        </div>
-        <div class="tbl-wrap">${buildExpTable(pExps, true)}</div>
-      </div>`;
-    });
-    if (!hasAny) html += '<div class="no-data">No individual expenses</div>';
-    html += '</div>';
-    list.innerHTML = html;
-  } else {
-    list.innerHTML = '<div class="tbl-wrap">' + buildExpTable(exps, false) + '</div>';
-  }
-}
-
-function buildExpTable(exps, compact) {
-  const cols = compact
-    ? `<tr><th>Date</th><th>Amount</th><th>Method</th><th>Notes</th><th style="width:80px">Actions</th></tr>`
-    : `<tr><th>Date</th><th>Amount</th><th>Type</th><th>Person</th><th>Method</th><th>Notes</th><th style="width:80px">Actions</th></tr>`;
-
-  const rows = exps.map(e => {
-    const typeBadge = e.type === 'common'
-      ? '<span class="badge badge-common">Common</span>'
-      : '<span class="badge badge-individual">Individual</span>';
-    const personCell = e.person ? `<span style="font-size:12px">${esc(e.person)}</span>` : '<span style="color:var(--faint)">—</span>';
-    return compact
-      ? `<tr>
-          <td style="white-space:nowrap;font-size:12px;color:var(--muted)">${fmtDate(e.date)}</td>
-          <td><strong style="color:var(--ink)">${fmt(e.amount)}</strong></td>
-          <td><span class="method-chip">${esc(e.method||'Cash')}</span></td>
-          <td style="color:var(--muted);font-size:12px">${esc(e.notes)||'—'}</td>
-          <td><div style="display:flex;gap:4px">
-            <button class="btn-icon" title="Edit" onclick="editExpense('${e.id}')">✏️</button>
-            <button class="btn-icon" title="Delete" onclick="deleteExpense('${e.id}')" style="color:var(--red)">🗑️</button>
-          </div></td>
-        </tr>`
-      : `<tr>
-          <td style="white-space:nowrap;font-size:12px;color:var(--muted)">${fmtDate(e.date)}</td>
-          <td><strong style="color:var(--ink)">${fmt(e.amount)}</strong></td>
-          <td>${typeBadge}</td>
-          <td>${personCell}</td>
-          <td><span class="method-chip">${esc(e.method||'Cash')}</span></td>
-          <td style="color:var(--muted);font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.notes)||'—'}</td>
-          <td><div style="display:flex;gap:4px">
-            <button class="btn-icon" title="Edit" onclick="editExpense('${e.id}')">✏️</button>
-            <button class="btn-icon" title="Delete" onclick="deleteExpense('${e.id}')" style="color:var(--red)">🗑️</button>
-          </div></td>
-        </tr>`;
-  }).join('');
-
-  return `<table><thead>${cols}</thead><tbody>${rows}</tbody></table>`;
-}
-
-// ───────────────────────── ADD/EDIT EXPENSE ───────────────
-function setExpType(type) {
-  STATE.expType = type;
-  document.getElementById('exp-type-common').classList.toggle('active', type === 'common');
-  document.getElementById('exp-type-individual').classList.toggle('active', type === 'individual');
-  document.getElementById('exp-person-wrap').style.display = type === 'individual' ? '' : 'none';
-}
-
-function openAddExpModal() {
-  const trip = getCurrentTrip();
-  if (!trip) return;
-  STATE.editingExpId = null;
-  document.getElementById('exp-modal-title').textContent = 'Add Expense';
-  document.getElementById('exp-amount').value = '';
-  document.getElementById('exp-date').value = today();
-  document.getElementById('exp-method').value = 'Cash';
-  document.getElementById('exp-notes').value = '';
-  document.getElementById('exp-modal-err').textContent = '';
-  setExpType('common');
-  const sel = document.getElementById('exp-person');
-  sel.innerHTML = '<option value="">-- Select Person --</option>' + trip.participants.map(p => `<option>${esc(p.name)}</option>`).join('');
-  openModal('modal-expense');
-}
-
-function editExpense(id) {
-  const trip = getCurrentTrip();
-  const exp = (trip.expenses || []).find(e => e.id === id);
-  if (!exp) return;
-  STATE.editingExpId = id;
-  document.getElementById('exp-modal-title').textContent = 'Edit Expense';
-  document.getElementById('exp-amount').value = exp.amount;
-  document.getElementById('exp-date').value = exp.date;
-  document.getElementById('exp-method').value = exp.method || 'Cash';
-  document.getElementById('exp-notes').value = exp.notes || '';
-  document.getElementById('exp-modal-err').textContent = '';
-  setExpType(exp.type);
-  const sel = document.getElementById('exp-person');
-  sel.innerHTML = '<option value="">-- Select Person --</option>' + trip.participants.map(p => `<option ${p.name===exp.person?'selected':''}>${esc(p.name)}</option>`).join('');
-  openModal('modal-expense');
-}
-
-function saveExpense() {
-  const trip = getCurrentTrip();
-  const amount = parseFloat(document.getElementById('exp-amount').value);
-  const date = document.getElementById('exp-date').value;
-  const method = document.getElementById('exp-method').value;
-  const notes = document.getElementById('exp-notes').value.trim();
-  const type = STATE.expType;
-  const person = type === 'individual' ? document.getElementById('exp-person').value : null;
-  const errEl = document.getElementById('exp-modal-err');
-
-  if (!amount || amount <= 0) { errEl.textContent = 'Enter a valid amount'; return; }
-  if (!date) { errEl.textContent = 'Date is required'; return; }
-  if (type === 'individual' && !person) { errEl.textContent = 'Select a person for individual expense'; return; }
-
-  const exp = { id: STATE.editingExpId || uid(), amount, date, method, notes, type, person: person || null };
-  const exps = trip.expenses || [];
-  if (STATE.editingExpId) {
-    trip.expenses = exps.map(e => e.id === STATE.editingExpId ? exp : e);
-    toast('Expense updated');
-  } else {
-    trip.expenses = [...exps, exp];
-    toast('Expense added');
-  }
-  updateTrip(trip);
-  closeModal('modal-expense');
-  renderExpenses(trip);
-  // Also refresh overview if needed
-}
-
-function deleteExpense(id) {
-  if (!confirm('Delete this expense?')) return;
-  const trip = getCurrentTrip();
-  trip.expenses = (trip.expenses || []).filter(e => e.id !== id);
-  updateTrip(trip);
-  renderExpenses(trip);
-  toast('Expense deleted', 'error');
-}
-
-// ───────────────────────── PARTICIPANT ─────────────────────
-function addParticipant() {
-  const name = document.getElementById('ap-name').value.trim();
-  const advance = parseFloat(document.getElementById('ap-advance').value) || 0;
-  const trip = getCurrentTrip();
-  document.getElementById('ap-err').textContent = '';
-  if (!name) { document.getElementById('ap-err').textContent = 'Name is required'; return; }
-  if (trip.participants.find(p => p.name.toLowerCase() === name.toLowerCase())) { document.getElementById('ap-err').textContent = 'Participant already exists'; return; }
-  trip.participants.push({ id: uid(), name, advance });
-  updateTrip(trip);
-  closeModal('modal-add-participant');
-  renderOverview(trip);
-  toast(name + ' added to trip');
-}
-
-// ───────────────────────── SETTLEMENT ─────────────────────
-function renderSettlement(trip) {
-  document.getElementById('set-tripsub').textContent = trip.name + ' · Final balance calculation';
-  const n = trip.participants.length;
-  const commonSpent = (trip.expenses||[]).filter(e=>e.type==='common').reduce((s,e)=>s+e.amount,0);
-  const perHead = n > 0 ? commonSpent / n : 0;
-
-  const calc = trip.participants.map(p => {
-    const indiv = (trip.expenses||[]).filter(e=>e.type==='individual'&&e.person===p.name).reduce((s,e)=>s+e.amount,0);
-    const totalSpent = perHead + indiv;
-    const balance = (p.advance||0) - totalSpent;
-    return { ...p, indiv, totalSpent, balance, perHead };
-  });
-
-  const givers = calc.filter(p=>p.balance<0).map(p=>({...p,owes:-p.balance}));
-  const receivers = calc.filter(p=>p.balance>0).map(p=>({...p,due:p.balance}));
-  const txns = computeSettlement(givers.map(g=>({...g})), receivers.map(r=>({...r})));
-
-  const balanceRows = calc.map(p => `
-    <tr>
-      <td><div style="display:flex;align-items:center;gap:8px">
-        <div class="participant-avatar">${initials(p.name)}</div>
-        <span style="font-weight:500">${esc(p.name)}</span>
-      </div></td>
-      <td style="text-align:right;font-weight:600;color:var(--green)">${fmt(p.advance||0)}</td>
-      <td style="text-align:right">${fmt(p.perHead)}</td>
-      <td style="text-align:right">${fmt(p.indiv)}</td>
-      <td style="text-align:right;font-weight:700;color:var(--amber)">${fmt(p.totalSpent)}</td>
-      <td style="text-align:right">
-        <span class="badge ${p.balance>=0?'badge-receive':'badge-pay'}">
-          ${p.balance>=0?'▲ Receive':'▼ Pay'} ${fmt(Math.abs(p.balance))}
-        </span>
-      </td>
-    </tr>
-  `).join('');
-
-  const txnRows = txns.length ? txns.map(t => `
-    <div class="balance-row">
-      <div style="display:flex;align-items:center;gap:8px">
-        <div class="participant-avatar" style="background:var(--redl);color:var(--red)">${initials(t.from)}</div>
-        <span style="font-weight:500;font-size:14px">${esc(t.from)}</span>
-      </div>
-      <div class="settlement-arrow">
-        <div class="arrow-line"></div>
-        <span class="settlement-amount" style="background:var(--greenl);color:var(--green)">${fmt(t.amount)}</span>
-        <div class="arrow-line"></div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-weight:500;font-size:14px">${esc(t.to)}</span>
-        <div class="participant-avatar" style="background:var(--greenl);color:var(--green)">${initials(t.to)}</div>
-      </div>
-    </div>
-  `).join('') : `<div style="text-align:center;padding:32px">
-    <div style="font-size:40px;margin-bottom:10px">✅</div>
-    <div style="font-weight:600;color:var(--green);font-size:16px">All Settled!</div>
-    <div style="color:var(--muted);font-size:13px;margin-top:4px">No transactions needed</div>
-  </div>`;
-
-  document.getElementById('settlement-content').innerHTML = `
-    <div class="card" style="margin-bottom:16px">
-      <h3 style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:6px">Balance Sheet</h3>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Common expense per head: <strong>${fmt(perHead)}</strong></p>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr>
-            <th>Participant</th>
-            <th style="text-align:right">Advance Paid</th>
-            <th style="text-align:right">Common Share</th>
-            <th style="text-align:right">Individual</th>
-            <th style="text-align:right">Total Spent</th>
-            <th style="text-align:right">Balance</th>
-          </tr></thead>
-          <tbody>${balanceRows}</tbody>
-        </table>
-      </div>
-    </div>
-    <div class="card">
-      <h3 style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:6px">Settlement Plan</h3>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Minimum transactions to clear all dues</p>
-      ${txnRows}
-    </div>
-  `;
-}
-
-function computeSettlement(givers, receivers) {
-  const txns = [];
-  let i = 0, j = 0;
-  while (i < givers.length && j < receivers.length) {
-    const amt = Math.min(givers[i].owes, receivers[j].due);
-    if (amt > 0.5) txns.push({ from: givers[i].name, to: receivers[j].name, amount: amt });
-    givers[i].owes -= amt;
-    receivers[j].due -= amt;
-    if (givers[i].owes < 0.5) i++;
-    if (receivers[j].due < 0.5) j++;
-  }
-  return txns;
-}
-
-// ───────────────────────── EXPORT ─────────────────────────
-function exportCSV() {
-  const trip = getCurrentTrip();
-  if (!trip) return;
-  const rows = [['Date','Amount','Type','Person','Method','Notes']];
-  (trip.expenses||[]).slice().sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(e => {
-    rows.push([e.date, e.amount, e.type, e.person||'All', e.method||'Cash', e.notes||'']);
-  });
-  const csv = rows.map(r => r.map(cell => '"' + String(cell).replace(/"/g,'""') + '"').join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = trip.name.replace(/\s+/g,'_') + '_expenses.csv';
-  a.click();
-  toast('CSV exported!');
-}
-
-// ───────────────────────── MODALS ─────────────────────────
-function openModal(id) {
-  document.getElementById(id).classList.add('open');
-}
-function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
-}
-// Close modal on overlay click
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-  overlay.addEventListener('click', e => {
-    if (e.target === overlay) overlay.classList.remove('open');
-  });
-});
-
-// ───────────────────────── HELPERS ────────────────────────
-function esc(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ───────────────────────── INIT ───────────────────────────
-// Check for logged in user (demo: no persistent session for security)
 </script>
 </body>
 </html>
