@@ -500,14 +500,44 @@ async function renderDashboard(){
     if(!trips.length){grid.innerHTML=`<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">✈️</div><div class="empty-title">No trips yet</div><div class="empty-sub">Create your first trip to start tracking</div><button class="btn btn-primary" onclick="openNewTripModal()">+ Create Trip</button></div>`;return;}
     grid.innerHTML=trips.map(t=>{
       const total=t.totalExpenses||0;const adv=(t.participants||[]).reduce((s,p)=>s+(p.advance||0),0);
+      const remaining=adv-total;
       const pct=adv>0?Math.min(100,Math.round(total/adv*100)):0;
-      return `<div class="trip-card" onclick="openTrip('${t.id}')">
-        <div class="trip-card-head"><div><div class="trip-card-name">${t.name}</div><div class="trip-card-date">${t.createdAt?.toDate?t.createdAt.toDate().toLocaleDateString('en-IN'):'Recently'}</div></div><span style="font-size:22px">✈️</span></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><span class="badge badge-neutral">👥 ${(t.participants||[]).length} people</span><span class="badge badge-neutral">🧾 ${t.expenseCount||0} expenses</span></div>
-        <div class="trip-progress"><div class="trip-progress-bar" style="width:${pct}%"></div></div>
-        <div class="trip-stats"><div class="trip-stat"><strong>${fmt(total)}</strong>Total Spent</div><div class="trip-stat"><strong>${fmt(adv)}</strong>Advance Pool</div></div>
+      const dateStr=t.createdAt?.toDate?t.createdAt.toDate().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'Recently';
+      return `<div class="trip-card" onclick="openTrip('${t.id}')" id="tcard-${t.id}">
+        <div class="trip-card-head">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:18px">📍</span>
+            <div><div class="trip-card-name">${t.name}</div><div class="trip-card-date">${dateStr}</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="badge badge-neutral">👥 ${(t.participants||[]).length} people</span>
+            <button class="btn-icon" style="border-color:#fca5a5;color:var(--red);background:var(--redl)" onclick="event.stopPropagation();deleteTrip('${t.id}','${t.name}')" title="Delete trip">🗑️</button>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+          <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--ink)">${fmt(adv)}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Collected</div></div>
+          <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--red)">${fmt(total)}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Spent</div></div>
+          <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--green)">${fmt(remaining)}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Remaining</div></div>
+        </div>
       </div>`;}).join('');
   }finally{hideLoading();}
+}
+
+window.deleteTrip=async function(tid,name){
+  if(!confirm(`Delete trip "${name}"?\n\nThis will permanently delete the trip and ALL its expenses. This cannot be undone.`))return;
+  showLoading();
+  try{
+    const exps=await getExpenses(tid);
+    for(const e of exps) await deleteExpense(tid,e.id);
+    await deleteDoc(tripRef(STATE.currentUser.id,tid));
+    if(STATE.currentTripId===tid){
+      STATE.currentTripId=null;
+      document.getElementById('trip-nav').style.display='none';
+      ['overview','expenses','settlement'].forEach(p=>{const m=document.getElementById('mnav-'+p);if(m)m.style.display='none';});
+    }
+    toast(`Trip "${name}" deleted!`);
+    await renderDashboard();
+  }catch(e){toast(e.message,'error');}finally{hideLoading();}
 }
 
 window.openTrip=async function(id){
@@ -735,7 +765,9 @@ async function renderSettlement(){
     const perHead=n>0?commonTotal/n:0;
     const balances=participants.map(p=>{
       const myIndiv=expenses.filter(e=>e.type==='individual'&&e.person===p.name).reduce((s,e)=>s+(e.amount||0),0);
-      const owed=perHead+myIndiv;return{name:p.name,advance:p.advance||0,owed,balance:(p.advance||0)-owed};
+      const totalSpent=perHead+myIndiv;
+      const balance=(p.advance||0)-totalSpent;
+      return{name:p.name,advance:p.advance||0,commonShare:perHead,individual:myIndiv,totalSpent,balance};
     });
     const payers=balances.filter(b=>b.balance<0).map(b=>({...b,rem:-b.balance}));
     const receivers=balances.filter(b=>b.balance>0).map(b=>({...b,rem:b.balance}));
@@ -747,26 +779,65 @@ async function renderSettlement(){
       if(payers[pi].rem<0.01)pi++;if(receivers[ri].rem<0.01)ri++;
     }
     document.getElementById('settlement-content').innerHTML=`
-      <div class="card" style="margin-bottom:16px">
-        <h4 style="margin-bottom:14px;font-family:'Syne',sans-serif">📊 Balance Summary</h4>
-        ${balances.map(b=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div class="participant-avatar">${b.name[0].toUpperCase()}</div>
-            <div><div style="font-weight:600">${b.name}</div><div style="font-size:11px;color:var(--muted)">Advance ${fmt(b.advance)} · Spent ${fmt(b.owed)}</div></div>
-          </div>
-          <span class="badge ${b.balance>0.01?'badge-receive':b.balance<-0.01?'badge-pay':'badge-neutral'}">
-            ${b.balance>0.01?'▲ Gets '+fmt(b.balance):b.balance<-0.01?'▼ Pays '+fmt(-b.balance):'✓ Settled'}
-          </span>
-        </div>`).join('')}
+      <div class="card" style="margin-bottom:16px;padding:0;overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+          <h4 style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700">Balance Sheet</h4>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">Common expense per head: <strong style="color:var(--ink)">${fmt(perHead)}</strong></div>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:580px">
+            <thead>
+              <tr style="background:var(--greenl)">
+                <th style="padding:11px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--ink2);letter-spacing:.5px;text-transform:uppercase;border-bottom:1.5px solid var(--border)">Participant</th>
+                <th style="padding:11px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--ink2);letter-spacing:.5px;text-transform:uppercase;border-bottom:1.5px solid var(--border)">Advance Paid</th>
+                <th style="padding:11px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--ink2);letter-spacing:.5px;text-transform:uppercase;border-bottom:1.5px solid var(--border)">Common Share</th>
+                <th style="padding:11px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--ink2);letter-spacing:.5px;text-transform:uppercase;border-bottom:1.5px solid var(--border)">Individual</th>
+                <th style="padding:11px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--ink2);letter-spacing:.5px;text-transform:uppercase;border-bottom:1.5px solid var(--border)">Total Spent</th>
+                <th style="padding:11px 16px;text-align:right;font-size:11px;font-weight:700;color:var(--ink2);letter-spacing:.5px;text-transform:uppercase;border-bottom:1.5px solid var(--border)">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${balances.map(b=>`<tr style="border-bottom:1px solid var(--border);transition:background .15s" onmouseover="this.style.background='var(--greenl)'" onmouseout="this.style.background=''">
+                <td style="padding:12px 16px">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <div class="participant-avatar">${b.name[0].toUpperCase()}</div>
+                    <span style="font-weight:600;font-size:13px">${b.name}</span>
+                  </div>
+                </td>
+                <td style="padding:12px 14px;text-align:right;font-weight:600;color:var(--ink)">${fmt(b.advance)}</td>
+                <td style="padding:12px 14px;text-align:right;color:var(--muted)">${fmt(b.commonShare)}</td>
+                <td style="padding:12px 14px;text-align:right;color:var(--muted)">${fmt(b.individual)}</td>
+                <td style="padding:12px 14px;text-align:right;font-weight:600;color:${b.totalSpent>0?'var(--amber)':'var(--muted)'}">${fmt(b.totalSpent)}</td>
+                <td style="padding:12px 16px;text-align:right">
+                  <span class="badge ${b.balance>0.01?'badge-receive':b.balance<-0.01?'badge-pay':'badge-neutral'}">
+                    ${b.balance>0.01?'▲ Receive '+fmt(b.balance):b.balance<-0.01?'▼ Pay '+fmt(-b.balance):'✓ Settled'}
+                  </span>
+                </td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
       </div>
-      <div class="card"><h4 style="margin-bottom:14px;font-family:'Syne',sans-serif">💸 Payment Plan</h4>
+
+      <div class="card">
+        <h4 style="margin-bottom:6px;font-family:'Syne',sans-serif;font-size:16px;font-weight:700">Settlement Plan</h4>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Minimum transactions to clear all dues</p>
         ${settlements.length?settlements.map(s=>`<div class="balance-row">
           <div class="participant-avatar">${s.from[0].toUpperCase()}</div>
-          <div class="settlement-arrow"><span style="font-size:13px;font-weight:600">${s.from}</span>
-          <div class="arrow-line"></div><span class="settlement-amount badge-pay">${fmt(s.amount)}</span>
-          <div class="arrow-line" style="transform:scaleX(-1)"></div><span style="font-size:13px;font-weight:600">${s.to}</span></div>
+          <div class="settlement-arrow">
+            <span style="font-size:13px;font-weight:600">${s.from}</span>
+            <div class="arrow-line"></div>
+            <span class="settlement-amount badge-pay">${fmt(s.amount)}</span>
+            <div class="arrow-line" style="transform:scaleX(-1)"></div>
+            <span style="font-size:13px;font-weight:600">${s.to}</span>
+          </div>
           <div class="participant-avatar">${s.to[0].toUpperCase()}</div>
-        </div>`).join(''):'<div class="no-data">🎉 Everyone is settled up!</div>'}
+        </div>`).join(''):`
+          <div style="text-align:center;padding:32px 16px">
+            <div style="font-size:48px;margin-bottom:12px">✅</div>
+            <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--green);margin-bottom:6px">All Settled!</div>
+            <div style="font-size:13px;color:var(--muted)">No transactions needed</div>
+          </div>`}
       </div>`;
   }finally{hideLoading();}
 }
